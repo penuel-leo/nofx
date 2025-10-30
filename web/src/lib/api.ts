@@ -12,6 +12,15 @@ import type {
 // 在生产环境中，可以设置为完整的后端地址，如 'https://api.example.com/api'
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 
+// 在控制台打印环境变量配置，便于调试
+console.log('🔧 API Configuration:', {
+  VITE_API_BASE_URL: import.meta.env.VITE_API_BASE_URL,
+  API_BASE: API_BASE,
+  mode: import.meta.env.MODE,
+  isDev: import.meta.env.DEV,
+  isProd: import.meta.env.PROD,
+});
+
 export const api = {
   // 竞赛相关接口
   async getCompetition(): Promise<CompetitionData> {
