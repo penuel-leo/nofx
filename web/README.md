@@ -18,6 +18,24 @@
 npm install
 ```
 
+## 环境变量配置
+
+首次运行前，请复制环境变量示例文件：
+
+```bash
+cp .env.example .env
+```
+
+可配置的环境变量：
+
+| 变量名 | 说明 | 默认值 | 示例 |
+|--------|------|--------|------|
+| `VITE_API_BASE_URL` | 后端 API 基础地址 | `/api` | `http://localhost:8080/api` |
+
+**配置说明：**
+- **开发环境**：使用默认值 `/api`，通过 Vite 代理转发到 `http://localhost:8080`
+- **生产环境**：可设置为完整的后端地址，如 `https://api.example.com/api`
+
 ## 运行开发服务器
 
 ```bash
@@ -54,7 +72,13 @@ npm run build
 - 决策日志、统计：每10秒刷新
 
 ### API集成
-前端通过Vite代理访问后端API（http://localhost:8080）
+
+前端通过环境变量 `VITE_API_BASE_URL` 配置后端地址。
+
+**配置方式：**
+- 在 `.env` 文件中设置 `VITE_API_BASE_URL`
+- 默认值为 `/api`，开发环境通过 Vite 代理转发到 `http://localhost:8080`
+- 代码位置：`src/lib/api.ts` 第 13 行
 
 **API端点：**
 - `GET /api/status` - 系统状态

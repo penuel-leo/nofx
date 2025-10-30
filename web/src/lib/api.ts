@@ -8,7 +8,9 @@ import type {
   CompetitionData,
 } from '../types';
 
-const API_BASE = '/api';
+// 从环境变量读取 API 基础地址，如果未设置则使用默认值 '/api'
+// 在生产环境中，可以设置为完整的后端地址，如 'https://api.example.com/api'
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 
 export const api = {
   // 竞赛相关接口
