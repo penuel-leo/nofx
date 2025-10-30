@@ -4,11 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "prebuild": "node scripts/check-env.js",
     "build": "tsc && vite build",
-    "preview": "vite preview",
-    "preview:prod": "VITE_API_BASE_URL=https://your-backend.com/api vite preview",
-    "verify": "bash scripts/verify-build.sh"
+    "preview": "vite preview"
   },
   "dependencies": {
     "react": "^18.3.1",
