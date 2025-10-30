@@ -66,22 +66,29 @@ type Config struct {
 func LoadConfig(filename string) (*Config, error) {
 	var data []byte
 	var err error
+	var configSource string
 
-	// 优先从环境变量加载配置
-	if envConfig := os.Getenv("TRADER_CONFIG"); envConfig != "" {
-		fmt.Println("📋 从环境变量 TRADER_CONFIG 加载配置")
+	// 调试：打印所有可能的环境变量名称
+	fmt.Println("🔍 检查环境变量配置...")
+	envConfig := os.Getenv("TRADER_CONFIG")
+	if envConfig != "" {
+		fmt.Printf("✓ 发现环境变量 TRADER_CONFIG (长度: %d 字节)\n", len(envConfig))
+		configSource = "环境变量 TRADER_CONFIG"
 		data = []byte(envConfig)
 	} else {
+		fmt.Println("ℹ️  环境变量 TRADER_CONFIG 未设置，尝试加载配置文件...")
 		// 环境变量不存在，从文件加载
+		configSource = fmt.Sprintf("配置文件 %s", filename)
 		data, err = os.ReadFile(filename)
 		if err != nil {
-			return nil, fmt.Errorf("读取配置文件失败: %w", err)
+			return nil, fmt.Errorf("无法加载配置:\n  - 环境变量 TRADER_CONFIG 未设置\n  - 配置文件 %s 不存在或无法读取\n\n请通过以下方式之一提供配置:\n  1. 设置环境变量 TRADER_CONFIG (推荐用于云部署)\n  2. 创建配置文件 %s\n\n详细错误: %v", filename, filename, err)
 		}
+		fmt.Printf("✓ 成功读取配置文件 (大小: %d 字节)\n", len(data))
 	}
 
 	var config Config
 	if err := json.Unmarshal(data, &config); err != nil {
-		return nil, fmt.Errorf("解析配置失败: %w", err)
+		return nil, fmt.Errorf("解析配置失败 (来源: %s): %w", configSource, err)
 	}
 
 	// 设置默认值：如果use_default_coins未设置（为false）且没有配置coin_pool_api_url，则默认使用默认币种列表
@@ -91,9 +98,10 @@ func LoadConfig(filename string) (*Config, error) {
 
 	// 验证配置
 	if err := config.Validate(); err != nil {
-		return nil, fmt.Errorf("配置验证失败: %w", err)
+		return nil, fmt.Errorf("配置验证失败 (来源: %s): %w", configSource, err)
 	}
 
+	fmt.Printf("✓ 配置加载成功 (来源: %s)\n", configSource)
 	return &config, nil
 }
 

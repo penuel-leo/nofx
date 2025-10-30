@@ -11,12 +11,13 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ./config.json:/app/config.json:ro
+      - ./config.json:/app/config.json:ro  # 配置文件（如果环境变量未设置则使用此文件）
       - ./decision_logs:/app/decision_logs
       - /etc/localtime:/etc/localtime:ro  # 同步主机时间
       - frontend-dist:/app/web/dist-shared:rw  # 共享前端文件
     environment:
       - TZ=Asia/Shanghai  # 使用中国时区
+      - TRADER_CONFIG=${TRADER_CONFIG:-}  # 从环境变量或 .env 文件读取配置（优先级高于文件）
     networks:
       - nofx-network
     healthcheck:
