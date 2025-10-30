@@ -61,16 +61,27 @@ type Config struct {
 	Leverage           LeverageConfig `json:"leverage"` // 杠杆配置
 }
 
-// LoadConfig 从文件加载配置
+// LoadConfig 从环境变量或文件加载配置
+// 优先级：环境变量 TRADER_CONFIG > 配置文件
 func LoadConfig(filename string) (*Config, error) {
-	data, err := os.ReadFile(filename)
-	if err != nil {
-		return nil, fmt.Errorf("读取配置文件失败: %w", err)
+	var data []byte
+	var err error
+
+	// 优先从环境变量加载配置
+	if envConfig := os.Getenv("TRADER_CONFIG"); envConfig != "" {
+		fmt.Println("📋 从环境变量 TRADER_CONFIG 加载配置")
+		data = []byte(envConfig)
+	} else {
+		// 环境变量不存在，从文件加载
+		data, err = os.ReadFile(filename)
+		if err != nil {
+			return nil, fmt.Errorf("读取配置文件失败: %w", err)
+		}
 	}
 
 	var config Config
 	if err := json.Unmarshal(data, &config); err != nil {
-		return nil, fmt.Errorf("解析配置文件失败: %w", err)
+		return nil, fmt.Errorf("解析配置失败: %w", err)
 	}
 
 	// 设置默认值：如果use_default_coins未设置（为false）且没有配置coin_pool_api_url，则默认使用默认币种列表
