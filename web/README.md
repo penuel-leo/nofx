@@ -54,6 +54,27 @@ npm run build
 
 ## Vercel 部署
 
+> 📋 **完整部署检查清单**：请查看 [`DEPLOY_CHECKLIST.md`](./DEPLOY_CHECKLIST.md)
+
+### 部署前验证（重要！）
+
+在部署到 Vercel 之前，**必须先在本地验证**，避免反复部署浪费时间：
+
+```bash
+# 快速验证脚本（推荐）
+./scripts/verify-build.sh
+
+# 或者手动验证
+npm run build    # 查看构建日志中的环境变量
+npm run preview  # 访问 http://localhost:4173
+```
+
+**验证要点：**
+1. ✅ 构建日志显示环境变量检查信息
+2. ✅ 浏览器控制台显示 `🔧 API Configuration`
+3. ✅ 页面可以正常访问（不是 404）
+4. ✅ 刷新页面后仍然正常
+
 ### 1. 框架选择
 
 在 Vercel 项目设置中选择 **`Vite`** 作为框架预设。
