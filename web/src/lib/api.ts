@@ -10,7 +10,7 @@ import type {
 
 // 从环境变量读取 API 基础地址，如果未设置则使用默认值 '/api'
 // 在生产环境中，可以设置为完整的后端地址，如 'https://api.example.com/api'
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
+const API_BASE = import.meta.env.VITE_API_BASE_URL+'/api' || '/api';
 
 // 在控制台打印环境变量配置，便于调试
 console.log('🔧 API Configuration:', {
@@ -120,5 +120,21 @@ export const api = {
     const res = await fetch(url);
     if (!res.ok) throw new Error('获取AI学习数据失败');
     return res.json();
+  },
+
+  // 健康检查接口（用于防止 Render 后端休眠）
+  async healthCheck(): Promise<void> {
+    try {
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || '';
+      const res = await fetch(`${baseUrl}/health`, {
+        method: 'GET',
+        cache: 'no-store',
+      });
+      if (res.ok) {
+        console.log('✅ Health check: Backend is alive');
+      }
+    } catch (error) {
+      console.warn('⚠️ Health check failed:', error);
+    }
   },
 };

@@ -685,6 +685,22 @@ function DecisionCard({ decision, language }: { decision: DecisionRecord; langua
 
 // Wrap App with LanguageProvider
 export default function AppWithLanguage() {
+  // 防止 Render 后端休眠：每分钟发送一次健康检查请求
+  useEffect(() => {
+    // 立即执行一次
+    api.healthCheck();
+
+    // 设置定时器：每60秒（1分钟）执行一次
+    const intervalId = setInterval(() => {
+      api.healthCheck();
+    }, 60000); // 60000ms = 1分钟
+
+    // 清理函数：组件卸载时清除定时器
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, []);
+
   return (
     <LanguageProvider>
       <App />
