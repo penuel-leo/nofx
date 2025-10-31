@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"nofx/config"
+	"nofx/market"
 	"nofx/trader"
 	"sync"
 	"time"
@@ -29,6 +30,12 @@ func (tm *TraderManager) AddTrader(cfg config.TraderConfig, coinPoolURL string, 
 
 	if _, exists := tm.traders[cfg.ID]; exists {
 		return fmt.Errorf("trader ID '%s' 已存在", cfg.ID)
+	}
+
+	// 如果是第一个trader，设置市场数据的默认交易所
+	if len(tm.traders) == 0 && cfg.Exchange != "" {
+		market.SetDefaultExchange(cfg.Exchange)
+		log.Printf("📊 市场数据源已设置为: %s", cfg.Exchange)
 	}
 
 	// 构建AutoTraderConfig

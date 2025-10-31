@@ -8,7 +8,28 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 )
+
+// 全局配置：默认交易所
+var (
+	defaultExchange   = "binance" // 默认使用币安
+	defaultExchangeMu sync.RWMutex
+)
+
+// SetDefaultExchange 设置默认交易所（"binance" 或 "aster"）
+func SetDefaultExchange(exchange string) {
+	defaultExchangeMu.Lock()
+	defer defaultExchangeMu.Unlock()
+	defaultExchange = exchange
+}
+
+// GetDefaultExchange 获取默认交易所
+func GetDefaultExchange() string {
+	defaultExchangeMu.RLock()
+	defer defaultExchangeMu.RUnlock()
+	return defaultExchange
+}
 
 // Data 市场数据结构
 type Data struct {
@@ -136,8 +157,23 @@ func Get(symbol string) (*Data, error) {
 	}, nil
 }
 
-// getKlines 从Binance获取K线数据
+// getKlines 根据配置的交易所获取K线数据
 func getKlines(symbol, interval string, limit int) ([]Kline, error) {
+	exchange := GetDefaultExchange()
+	
+	switch exchange {
+	case "aster":
+		return getKlinesAster(symbol, interval, limit)
+	case "binance":
+		return getKlinesBinance(symbol, interval, limit)
+	default:
+		// 默认使用币安
+		return getKlinesBinance(symbol, interval, limit)
+	}
+}
+
+// getKlinesBinance 从Binance获取K线数据
+func getKlinesBinance(symbol, interval string, limit int) ([]Kline, error) {
 	url := fmt.Sprintf("https://fapi.binance.com/fapi/v1/klines?symbol=%s&interval=%s&limit=%d",
 		symbol, interval, limit)
 
@@ -152,34 +188,60 @@ func getKlines(symbol, interval string, limit int) ([]Kline, error) {
 		return nil, fmt.Errorf("读取响应失败: %w", err)
 	}
 
-	// 检查HTTP状态码
-	if resp.StatusCode != http.StatusOK {
-		// 打印响应内容用于调试（最多500字符）
-		bodyPreview := string(body)
-		if len(bodyPreview) > 500 {
-			bodyPreview = bodyPreview[:500] + "..."
-		}
-		return nil, fmt.Errorf("API返回非200状态码: %d, 响应: %s", resp.StatusCode, bodyPreview)
+	// 尝试解析为K线数据
+	var rawData [][]interface{}
+	if err := json.Unmarshal(body, &rawData); err != nil {
+		// 解析失败，直接打印HTTP状态码和body
+		return nil, fmt.Errorf("解析K线数据失败 (HTTP %d): %s", resp.StatusCode, string(body))
 	}
 
-	// 尝试解析为错误响应
-	var binanceErr struct {
-		Code int    `json:"code"`
-		Msg  string `json:"msg"`
+	klines := make([]Kline, len(rawData))
+	for i, item := range rawData {
+		openTime := int64(item[0].(float64))
+		open, _ := parseFloat(item[1])
+		high, _ := parseFloat(item[2])
+		low, _ := parseFloat(item[3])
+		close, _ := parseFloat(item[4])
+		volume, _ := parseFloat(item[5])
+		closeTime := int64(item[6].(float64))
+
+		klines[i] = Kline{
+			OpenTime:  openTime,
+			Open:      open,
+			High:      high,
+			Low:       low,
+			Close:     close,
+			Volume:    volume,
+			CloseTime: closeTime,
+		}
 	}
-	if err := json.Unmarshal(body, &binanceErr); err == nil && binanceErr.Code != 0 {
-		return nil, fmt.Errorf("Binance API错误 [%d]: %s", binanceErr.Code, binanceErr.Msg)
+
+	return klines, nil
+}
+
+// getKlinesAster 从Aster获取K线数据
+// Aster使用spot API: https://sapi.asterdex.com
+func getKlinesAster(symbol, interval string, limit int) ([]Kline, error) {
+	// Aster Spot API endpoint
+	url := fmt.Sprintf("https://sapi.asterdex.com/api/v3/klines?symbol=%s&interval=%s&limit=%d",
+		symbol, interval, limit)
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("HTTP请求失败: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("读取响应失败: %w", err)
 	}
 
 	// 尝试解析为K线数据
 	var rawData [][]interface{}
 	if err := json.Unmarshal(body, &rawData); err != nil {
-		// 打印响应内容用于调试
-		bodyPreview := string(body)
-		if len(bodyPreview) > 500 {
-			bodyPreview = bodyPreview[:500] + "..."
-		}
-		return nil, fmt.Errorf("JSON解析失败: %w, 响应内容: %s", err, bodyPreview)
+		// 解析失败，直接打印HTTP状态码和body
+		return nil, fmt.Errorf("解析K线数据失败 (HTTP %d): %s", resp.StatusCode, string(body))
 	}
 
 	klines := make([]Kline, len(rawData))
