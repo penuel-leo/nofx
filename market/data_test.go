@@ -9,10 +9,10 @@ import (
 	"time"
 )
 
-// TestGetKlinesAster 测试Aster API K线获取
+// TestGetKlinesAster 测试Aster Futures API K线获取
 func TestGetKlinesAster(t *testing.T) {
 	// 直接测试HTTP请求，避免使用可能有问题的函数
-	url := "https://sapi.asterdex.com/api/v1/klines?symbol=BTCUSDT&interval=3m&limit=10"
+	url := "https://fapi.asterdex.com/fapi/v3/klines?symbol=BTCUSDT&interval=3m&limit=10"
 	
 	// 创建带超时的客户端
 	client := &http.Client{
@@ -72,8 +72,68 @@ func TestGetKlinesAster(t *testing.T) {
 	}
 }
 
-// TestGetKlinesBinance 测试币安API K线获取（对照组）
-func TestGetKlinesBinance(t *testing.T) {
-	t.Skip("跳过币安测试，专注Aster API")
+// TestGetOpenInterestAster 测试Aster Open Interest API
+func TestGetOpenInterestAster(t *testing.T) {
+	// 设置为aster交易所
+	oldExchange := GetDefaultExchange()
+	SetDefaultExchange("aster")
+	defer SetDefaultExchange(oldExchange)
+
+	oiData, err := getOpenInterestData("BTCUSDT")
+	if err != nil {
+		t.Fatalf("获取Aster OI失败: %v", err)
+	}
+
+	if oiData.Latest <= 0 {
+		t.Errorf("OI Latest为0或负数: %.4f", oiData.Latest)
+	}
+
+	t.Logf("✅ Open Interest: Latest=%.4f, Average=%.4f", oiData.Latest, oiData.Average)
+}
+
+// TestGetFundingRateAster 测试Aster Funding Rate API
+func TestGetFundingRateAster(t *testing.T) {
+	// 设置为aster交易所
+	oldExchange := GetDefaultExchange()
+	SetDefaultExchange("aster")
+	defer SetDefaultExchange(oldExchange)
+
+	rate, err := getFundingRate("BTCUSDT")
+	if err != nil {
+		t.Fatalf("获取Aster Funding Rate失败: %v", err)
+	}
+
+	t.Logf("✅ Funding Rate: %.8f", rate)
+}
+
+// TestMarketGetCompleteAster 测试完整的market.Get流程（包含所有API）
+func TestMarketGetCompleteAster(t *testing.T) {
+	// 设置为aster交易所
+	oldExchange := GetDefaultExchange()
+	SetDefaultExchange("aster")
+	defer SetDefaultExchange(oldExchange)
+
+	data, err := Get("BTCUSDT")
+	if err != nil {
+		t.Fatalf("获取市场数据失败: %v", err)
+	}
+
+	// 验证所有数据
+	if data.CurrentPrice == 0 {
+		t.Errorf("CurrentPrice为0")
+	}
+	if data.OpenInterest == nil {
+		t.Errorf("OpenInterest为nil")
+	} else if data.OpenInterest.Latest <= 0 {
+		t.Errorf("OpenInterest.Latest为0")
+	}
+
+	t.Logf("✅ 完整市场数据获取成功")
+	t.Logf("当前价格: %.2f", data.CurrentPrice)
+	t.Logf("Open Interest: %.4f", data.OpenInterest.Latest)
+	t.Logf("Funding Rate: %.8f", data.FundingRate)
+	t.Logf("EMA20: %.2f", data.CurrentEMA20)
+	t.Logf("MACD: %.4f", data.CurrentMACD)
+	t.Logf("RSI7: %.2f", data.CurrentRSI7)
 }
 

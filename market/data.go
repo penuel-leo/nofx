@@ -221,10 +221,10 @@ func getKlinesBinance(symbol, interval string, limit int) ([]Kline, error) {
 }
 
 // getKlinesAster 从Aster获取K线数据
-// Aster使用spot API: https://sapi.asterdex.com/api/v1/klines
+// Aster Futures API: https://fapi.asterdex.com/fapi/v3/klines
 func getKlinesAster(symbol, interval string, limit int) ([]Kline, error) {
-	// Aster Spot API endpoint (v1)
-	url := fmt.Sprintf("https://sapi.asterdex.com/api/v1/klines?symbol=%s&interval=%s&limit=%d",
+	// Aster Futures API endpoint (v3)
+	url := fmt.Sprintf("https://fapi.asterdex.com/fapi/v3/klines?symbol=%s&interval=%s&limit=%d",
 		symbol, interval, limit)
 
 	resp, err := http.Get(url)
@@ -476,7 +476,15 @@ func calculateLongerTermData(klines []Kline) *LongerTermData {
 
 // getOpenInterestData 获取OI数据
 func getOpenInterestData(symbol string) (*OIData, error) {
-	url := fmt.Sprintf("https://fapi.binance.com/fapi/v1/openInterest?symbol=%s", symbol)
+	var url string
+	exchange := GetDefaultExchange()
+	
+	switch exchange {
+	case "aster":
+		url = fmt.Sprintf("https://fapi.asterdex.com/fapi/v3/openInterest?symbol=%s", symbol)
+	default:
+		url = fmt.Sprintf("https://fapi.binance.com/fapi/v1/openInterest?symbol=%s", symbol)
+	}
 
 	resp, err := http.Get(url)
 	if err != nil {
@@ -509,7 +517,16 @@ func getOpenInterestData(symbol string) (*OIData, error) {
 
 // getFundingRate 获取资金费率
 func getFundingRate(symbol string) (float64, error) {
-	url := fmt.Sprintf("https://fapi.binance.com/fapi/v1/premiumIndex?symbol=%s", symbol)
+	var url string
+	exchange := GetDefaultExchange()
+	
+	switch exchange {
+	case "aster":
+		// Aster: 可以用 /fapi/v3/fundingRate 或 /fapi/v3/premiumIndex
+		url = fmt.Sprintf("https://fapi.asterdex.com/fapi/v3/fundingRate?symbol=%s", symbol)
+	default:
+		url = fmt.Sprintf("https://fapi.binance.com/fapi/v1/premiumIndex?symbol=%s", symbol)
+	}
 
 	resp, err := http.Get(url)
 	if err != nil {
@@ -522,22 +539,46 @@ func getFundingRate(symbol string) (float64, error) {
 		return 0, err
 	}
 
-	var result struct {
-		Symbol          string `json:"symbol"`
-		MarkPrice       string `json:"markPrice"`
-		IndexPrice      string `json:"indexPrice"`
-		LastFundingRate string `json:"lastFundingRate"`
-		NextFundingTime int64  `json:"nextFundingTime"`
-		InterestRate    string `json:"interestRate"`
-		Time            int64  `json:"time"`
-	}
+	// 根据交易所解析不同格式
+	if exchange == "aster" {
+		// Aster返回数组: [{"symbol":"BTCUSDT","fundingTime":...,"fundingRate":"0.00009077"},...]
+		var asterResult []struct {
+			Symbol      string `json:"symbol"`
+			FundingTime int64  `json:"fundingTime"`
+			FundingRate string `json:"fundingRate"`
+		}
+		
+		if err := json.Unmarshal(body, &asterResult); err != nil {
+			return 0, err
+		}
+		
+		if len(asterResult) == 0 {
+			return 0, fmt.Errorf("Aster返回空funding rate数据")
+		}
+		
+		// 取最新的（数组最后一个）
+		lastRate := asterResult[len(asterResult)-1].FundingRate
+		rate, _ := strconv.ParseFloat(lastRate, 64)
+		return rate, nil
+	} else {
+		// Binance返回对象
+		var result struct {
+			Symbol          string `json:"symbol"`
+			MarkPrice       string `json:"markPrice"`
+			IndexPrice      string `json:"indexPrice"`
+			LastFundingRate string `json:"lastFundingRate"`
+			NextFundingTime int64  `json:"nextFundingTime"`
+			InterestRate    string `json:"interestRate"`
+			Time            int64  `json:"time"`
+		}
 
-	if err := json.Unmarshal(body, &result); err != nil {
-		return 0, err
-	}
+		if err := json.Unmarshal(body, &result); err != nil {
+			return 0, err
+		}
 
-	rate, _ := strconv.ParseFloat(result.LastFundingRate, 64)
-	return rate, nil
+		rate, _ := strconv.ParseFloat(result.LastFundingRate, 64)
+		return rate, nil
+	}
 }
 
 // Format 格式化输出市场数据
