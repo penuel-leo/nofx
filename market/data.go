@@ -160,7 +160,7 @@ func Get(symbol string) (*Data, error) {
 // getKlines 根据配置的交易所获取K线数据
 func getKlines(symbol, interval string, limit int) ([]Kline, error) {
 	exchange := GetDefaultExchange()
-	
+	log.Println("使用API的交易所为:", exchange)
 	switch exchange {
 	case "aster":
 		return getKlinesAster(symbol, interval, limit)
