@@ -150,6 +150,7 @@ func fetchMarketDataForContext(ctx *Context) error {
 		data, err := market.Get(symbol)
 		if err != nil {
 			// 单个币种失败不影响整体，只记录错误
+			log.Printf("⚠️ 获取币种 %s 市场数据失败: %v，跳过此币种", symbol, err)
 			continue
 		}
 

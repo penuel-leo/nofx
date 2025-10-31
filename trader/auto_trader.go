@@ -280,6 +280,11 @@ func (at *AutoTrader) runCycle() error {
 	log.Printf("📊 账户净值: %.2f USDT | 可用: %.2f USDT | 持仓: %d",
 		ctx.Account.TotalEquity, ctx.Account.AvailableBalance, ctx.Account.PositionCount)
 
+	log.Println("当前候选币种：record.CandidateCoins")	
+	for i, coin := range record.CandidateCoins {
+		log.Printf("  [%d] %s", i+1, coin)
+	}
+
 	// 4. 调用AI获取完整决策
 	log.Println("🤖 正在请求AI分析并决策...")
 	decision, err := decision.GetFullDecision(ctx)
