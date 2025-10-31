@@ -467,9 +467,10 @@ func (t *AsterTrader) GetBalance() (map[string]interface{}, error) {
 }
 
 // GetPositions 获取持仓信息
+// 直接使用/fapi/v3/positionMargin/history接口，包含leverage字段
 func (t *AsterTrader) GetPositions() ([]map[string]interface{}, error) {
 	params := make(map[string]interface{})
-	body, err := t.request("GET", "/fapi/v3/positionRisk", params)
+	body, err := t.request("GET", "/fapi/v3/positionMargin/history", params)
 	if err != nil {
 		return nil, err
 	}
@@ -479,8 +480,11 @@ func (t *AsterTrader) GetPositions() ([]map[string]interface{}, error) {
 		return nil, err
 	}
 
+	log.Printf("  [持仓查询] positionMargin/history返回 %d 条记录", len(positions))
+
 	result := []map[string]interface{}{}
 	for _, pos := range positions {
+		// 解析持仓数量
 		posAmtStr, ok := pos["positionAmt"].(string)
 		if !ok {
 			continue
@@ -491,32 +495,45 @@ func (t *AsterTrader) GetPositions() ([]map[string]interface{}, error) {
 			continue // 跳过空仓位
 		}
 
+		// 解析其他字段
+		symbol, _ := pos["symbol"].(string)
+		positionSide, _ := pos["positionSide"].(string) // "LONG" or "SHORT"
 		entryPrice, _ := strconv.ParseFloat(pos["entryPrice"].(string), 64)
 		markPrice, _ := strconv.ParseFloat(pos["markPrice"].(string), 64)
 		unRealizedProfit, _ := strconv.ParseFloat(pos["unRealizedProfit"].(string), 64)
-		leverageVal, _ := strconv.ParseFloat(pos["leverage"].(string), 64)
 		liquidationPrice, _ := strconv.ParseFloat(pos["liquidationPrice"].(string), 64)
-
-		// 判断方向（与Binance一致）
-		side := "long"
-		if posAmt < 0 {
-			side = "short"
-			posAmt = -posAmt
+		
+		// 解析杠杆（string类型）
+		leverageVal := 10 // 默认值
+		if levStr, ok := pos["leverage"].(string); ok {
+			if lev, err := strconv.ParseFloat(levStr, 64); err == nil {
+				leverageVal = int(lev)
+			}
 		}
+
+		// 转换方向格式：LONG -> long, SHORT -> short（与Binance一致）
+		side := strings.ToLower(positionSide)
+		
+		// 持仓数量取绝对值（positionAmt可能为负）
+		posAmtAbs := math.Abs(posAmt)
+
+		log.Printf("  [持仓] %s %s: 杠杆=%dx, 数量=%.4f, 盈亏=%.2f", 
+			symbol, positionSide, leverageVal, posAmtAbs, unRealizedProfit)
 
 		// 返回与Binance相同的字段名
 		result = append(result, map[string]interface{}{
-			"symbol":            pos["symbol"],
+			"symbol":            symbol,
 			"side":              side,
-			"positionAmt":       posAmt,
+			"positionAmt":       posAmtAbs,
 			"entryPrice":        entryPrice,
 			"markPrice":         markPrice,
 			"unRealizedProfit":  unRealizedProfit,
-			"leverage":          leverageVal,
+			"leverage":          float64(leverageVal),
 			"liquidationPrice":  liquidationPrice,
 		})
 	}
 
+	log.Printf("  [持仓查询] 返回 %d 个有效持仓", len(result))
 	return result, nil
 }
 
@@ -799,13 +816,21 @@ func (t *AsterTrader) CloseShort(symbol string, quantity float64) (map[string]in
 
 // SetLeverage 设置杠杆倍数
 func (t *AsterTrader) SetLeverage(symbol string, leverage int) error {
+	log.Printf("  [杠杆设置] %s: 设置杠杆为 %dx", symbol, leverage)
+
 	params := map[string]interface{}{
 		"symbol":   symbol,
 		"leverage": leverage,
 	}
 
 	_, err := t.request("POST", "/fapi/v3/leverage", params)
-	return err
+	if err != nil {
+		log.Printf("  [杠杆设置] %s: 设置失败: %v", symbol, err)
+		return err
+	}
+
+	log.Printf("  [杠杆设置] %s: 设置成功 %dx", symbol, leverage)
+	return nil
 }
 
 // GetMarketPrice 获取市场价格
