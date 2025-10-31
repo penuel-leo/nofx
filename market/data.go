@@ -143,18 +143,43 @@ func getKlines(symbol, interval string, limit int) ([]Kline, error) {
 
 	resp, err := http.Get(url)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("HTTP请求失败: %w", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("读取响应失败: %w", err)
 	}
 
+	// 检查HTTP状态码
+	if resp.StatusCode != http.StatusOK {
+		// 打印响应内容用于调试（最多500字符）
+		bodyPreview := string(body)
+		if len(bodyPreview) > 500 {
+			bodyPreview = bodyPreview[:500] + "..."
+		}
+		return nil, fmt.Errorf("API返回非200状态码: %d, 响应: %s", resp.StatusCode, bodyPreview)
+	}
+
+	// 尝试解析为错误响应
+	var binanceErr struct {
+		Code int    `json:"code"`
+		Msg  string `json:"msg"`
+	}
+	if err := json.Unmarshal(body, &binanceErr); err == nil && binanceErr.Code != 0 {
+		return nil, fmt.Errorf("Binance API错误 [%d]: %s", binanceErr.Code, binanceErr.Msg)
+	}
+
+	// 尝试解析为K线数据
 	var rawData [][]interface{}
 	if err := json.Unmarshal(body, &rawData); err != nil {
-		return nil, err
+		// 打印响应内容用于调试
+		bodyPreview := string(body)
+		if len(bodyPreview) > 500 {
+			bodyPreview = bodyPreview[:500] + "..."
+		}
+		return nil, fmt.Errorf("JSON解析失败: %w, 响应内容: %s", err, bodyPreview)
 	}
 
 	klines := make([]Kline, len(rawData))
