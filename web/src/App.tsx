@@ -693,7 +693,7 @@ export default function AppWithLanguage() {
     // 设置定时器：每60秒（1分钟）执行一次
     const intervalId = setInterval(() => {
       api.healthCheck();
-    }, 60000); // 60000ms = 1分钟
+    }, 30000); // 30000ms = 30秒
 
     // 清理函数：组件卸载时清除定时器
     return () => {
