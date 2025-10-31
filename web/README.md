@@ -54,59 +54,58 @@ npm run build
 
 ## Vercel 部署
 
-> 📋 **完整部署检查清单**：请查看 [`DEPLOY_CHECKLIST.md`](./DEPLOY_CHECKLIST.md)
-
-### 部署前验证（重要！）
-
-在部署到 Vercel 之前，**必须先在本地验证**，避免反复部署浪费时间：
+### 部署前本地验证
 
 ```bash
-# 快速验证脚本（推荐）
-./scripts/verify-build.sh
+# 1. 构建
+npm run build
 
-# 或者手动验证
-npm run build    # 查看构建日志中的环境变量
-npm run preview  # 访问 http://localhost:4173
+# 2. 预览（可选）
+npm run preview
+# 访问 http://localhost:4173
 ```
 
-**验证要点：**
-1. ✅ 构建日志显示环境变量检查信息
-2. ✅ 浏览器控制台显示 `🔧 API Configuration`
-3. ✅ 页面可以正常访问（不是 404）
-4. ✅ 刷新页面后仍然正常
+### Vercel 配置步骤
 
-### 1. 框架选择
+#### 1. 框架选择
 
 在 Vercel 项目设置中选择 **`Vite`** 作为框架预设。
 
-### 2. 环境变量配置
+#### 2. 环境变量配置
 
-在 Vercel 项目设置的 Environment Variables 中添加：
+在 Vercel 项目设置 → Environment Variables 中添加：
 
-| 变量名 | 值 | 说明 |
-|--------|-----|------|
-| `VITE_API_BASE_URL` | `https://your-backend.com/api` | 后端 API 地址 |
+| 变量名 | 值（示例） |
+|--------|-----------|
+| `VITE_API_BASE_URL` | `https://nofx-backend.onrender.com/api` |
 
-### 3. 部署配置
+**应用到所有环境：** Production、Preview、Development
 
-项目已包含 `vercel.json` 配置文件：
-- **输出目录**：`dist`（Vite 默认输出）
-- **构建命令**：`npm run build`
-- **开发命令**：`npm run dev`
+#### 3. 构建配置（自动检测，无需修改）
 
-### 4. 验证部署
+- Build Command: `npm run build`
+- Output Directory: `dist`
+- Install Command: `npm install`
 
-部署后，打开浏览器控制台，应该能看到类似输出：
+#### 4. 部署验证
 
-```
+部署成功后：
+
+1. **访问 Vercel 提供的 URL**
+2. **打开浏览器控制台**（F12 → Console）
+3. **查看日志输出**：
+
+```javascript
 🔧 API Configuration: {
-  VITE_API_BASE_URL: "https://your-backend.com/api",
-  API_BASE: "https://your-backend.com/api",
+  VITE_API_BASE_URL: "https://nofx-backend.onrender.com/api",
+  API_BASE: "https://nofx-backend.onrender.com/api",
   mode: "production",
   isDev: false,
   isProd: true
 }
 ```
+
+4. **刷新页面**，确认仍然可以正常访问（SPA 路由测试）
 
 ### 常见问题
 
