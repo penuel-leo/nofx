@@ -221,10 +221,10 @@ func getKlinesBinance(symbol, interval string, limit int) ([]Kline, error) {
 }
 
 // getKlinesAster 从Aster获取K线数据
-// Aster使用spot API: https://sapi.asterdex.com
+// Aster使用spot API: https://sapi.asterdex.com/api/v1/klines
 func getKlinesAster(symbol, interval string, limit int) ([]Kline, error) {
-	// Aster Spot API endpoint
-	url := fmt.Sprintf("https://sapi.asterdex.com/api/v3/klines?symbol=%s&interval=%s&limit=%d",
+	// Aster Spot API endpoint (v1)
+	url := fmt.Sprintf("https://sapi.asterdex.com/api/v1/klines?symbol=%s&interval=%s&limit=%d",
 		symbol, interval, limit)
 
 	resp, err := http.Get(url)
