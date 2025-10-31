@@ -62,6 +62,7 @@ npm run build
 
 # 2. 预览（可选）
 npm run preview
+npm run dev
 # 访问 http://localhost:4173
 ```
 
