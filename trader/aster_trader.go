@@ -484,25 +484,35 @@ func (t *AsterTrader) GetPositions() ([]map[string]interface{}, error) {
 		return nil, err
 	}
 
-	log.Printf("  [持仓查询] positionRisk返回 %d 条记录", len(positions))
+	log.Printf("  [持仓查询] positionRisk返回 %d 条原始记录", len(positions))
+	
+	// 调试：输出前3条记录的完整内容
+	log.Printf("  [调试] 前3条原始记录内容：")
+	for i := 0; i < len(positions) && i < 3; i++ {
+		log.Printf("    [%d] %+v", i+1, positions[i])
+	}
 
 	result := []map[string]interface{}{}
-	for _, pos := range positions {
+	skippedCount := 0
+	
+	for idx, pos := range positions {
 		// 解析持仓数量
 		posAmtStr, ok := pos["positionAmt"].(string)
 		if !ok {
-			log.Printf("    ⚠️  跳过：positionAmt字段不存在或格式错误")
+			log.Printf("    ⚠️  [记录%d] 跳过：positionAmt字段不存在或格式错误", idx+1)
+			skippedCount++
 			continue
 		}
 
 		posAmt, _ := strconv.ParseFloat(posAmtStr, 64)
 		if posAmt == 0 {
+			skippedCount++
 			continue // 跳过空仓位
 		}
 
 		// 解析基本字段
 		symbol, _ := pos["symbol"].(string)
-		positionSide, _ := pos["positionSide"].(string) // "LONG" or "SHORT"
+		positionSide, _ := pos["positionSide"].(string) // "BOTH", "LONG" or "SHORT"
 		entryPrice, _ := strconv.ParseFloat(pos["entryPrice"].(string), 64)
 		markPrice, _ := strconv.ParseFloat(pos["markPrice"].(string), 64)
 		unRealizedProfit, _ := strconv.ParseFloat(pos["unRealizedProfit"].(string), 64)
@@ -513,22 +523,23 @@ func (t *AsterTrader) GetPositions() ([]map[string]interface{}, error) {
 		if levStr, ok := pos["leverage"].(string); ok {
 			if lev, err := strconv.ParseFloat(levStr, 64); err == nil {
 				leverageVal = int(lev)
-				log.Printf("    [杠杆] %s (%s): 从API获取杠杆=%dx", symbol, positionSide, leverageVal)
-			} else {
-				log.Printf("    ⚠️  [杠杆] %s: 解析失败，使用默认值10x", symbol)
 			}
-		} else {
-			log.Printf("    ⚠️  [杠杆] %s: leverage字段不存在，使用默认值10x", symbol)
 		}
 
-		// 转换方向格式：LONG -> long, SHORT -> short（与Binance一致）
-		side := strings.ToLower(positionSide)
+		// 根据positionAmt的符号判断真实方向（重要！）
+		// 在BOTH模式下，positionAmt > 0 是多仓，< 0 是空仓
+		var side string
+		if posAmt > 0 {
+			side = "long"
+		} else {
+			side = "short"
+		}
 		
-		// 持仓数量取绝对值（positionAmt可能为负）
+		// 持仓数量取绝对值
 		posAmtAbs := math.Abs(posAmt)
 
-		log.Printf("  ✓ [持仓] %s %s: 杠杆=%dx, 数量=%.4f, 盈亏=%.2f", 
-			symbol, side, leverageVal, posAmtAbs, unRealizedProfit)
+		log.Printf("  ✓ [持仓] %s %s: positionAmt=%.4f, 方向=%s, 杠杆=%dx, 入场价=%.4f, 标记价=%.4f, 盈亏=%.2f", 
+			symbol, positionSide, posAmt, side, leverageVal, entryPrice, markPrice, unRealizedProfit)
 
 		// 返回与Binance相同的字段名
 		result = append(result, map[string]interface{}{
@@ -543,7 +554,8 @@ func (t *AsterTrader) GetPositions() ([]map[string]interface{}, error) {
 		})
 	}
 
-	log.Printf("  ✓ [持仓查询] 完成，返回 %d 个有效持仓", len(result))
+	log.Printf("  ✓ [持仓查询] 完成：原始记录=%d, 跳过空仓=%d, 有效持仓=%d", 
+		len(positions), skippedCount, len(result))
 	return result, nil
 }
 
